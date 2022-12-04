@@ -6,7 +6,7 @@ using System.IO.Ports;
 public class proj_exp1a_revise : MonoBehaviour {
 
 
-    protected SerialPort port = new SerialPort("COM3", 200, Parity.None, 8, StopBits.One);//port connect TXD (white) and GND (black)
+    //protected SerialPort port = new SerialPort("COM3", 200, Parity.None, 8, StopBits.One);//port connect TXD (white) and GND (black)
     protected string trigger_code = "";
 
     public string subject = "syw";
@@ -23,7 +23,7 @@ public class proj_exp1a_revise : MonoBehaviour {
     protected const int rep_num = 3;
     // there are also 2 anstwers
     public int wrong = 0;
-    protected float s1 = 2f;
+    protected float s1 = 1f;
 
     public float _timer = 0f;
     protected float time_begin = 0f;
@@ -32,7 +32,7 @@ public class proj_exp1a_revise : MonoBehaviour {
     protected GameObject start;
     protected GameObject stimuli;
     protected GameObject target;
-    protected GameObject cue;
+    protected GameObject match;
     public GameObject reference;
     protected GameObject[] distraction = new GameObject[set_size-1];
     protected GameObject end;
@@ -55,7 +55,8 @@ public class proj_exp1a_revise : MonoBehaviour {
 
     protected GameObject mask;
     protected GameObject fix_cross;
-    Vector3 miss_pos = new Vector3(0, 0, 80);
+    Vector3 miss_pos = new Vector3(0, 0, -20);
+    protected float this_delay = 0;
 
     // Use this for initialization
     void Start () {
@@ -63,7 +64,7 @@ public class proj_exp1a_revise : MonoBehaviour {
        start = (GameObject)Resources.Load("start");
         mask = GameObject.Find("mask");
         fix_cross = GameObject.Find("cross");
-       cue = Instantiate(start, new Vector3(-6.0f, 0.0f, 20.0f), Quaternion.Euler(new Vector3(0.0f, 0.0f, 0.0f))) as GameObject;
+        match = Instantiate(start, new Vector3(-6.0f, 0.0f, 20.0f), Quaternion.Euler(new Vector3(0.0f, 0.0f, 0.0f))) as GameObject;
         fix_cross.transform.position = miss_pos;
         mask.transform.position = miss_pos;
 
@@ -79,7 +80,7 @@ public class proj_exp1a_revise : MonoBehaviour {
        if ((Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) && receiver)
             {
             receiver = false;
-            port.Close();
+            //port.Close();
                 rt[index] = _timer - time_begin;
 
                 foreach (KeyCode keyCode in System.Enum.GetValues(typeof(KeyCode)))
@@ -99,17 +100,16 @@ public class proj_exp1a_revise : MonoBehaviour {
                 }
                 }
 
-                Destroy(cue);
+                Destroy(match);
                 mask.transform.position = miss_pos;
 
             if (index <= block_size-1)
-                {
-                  Invoke("present", 1);
-                }
-                else
-                {
+            {
+                fix_cross.transform.position = new Vector3(0, 0, loc_z);
+                   Invoke("present", 1.5f);
+            }else{
                     finish();
-                }
+            }
 
             
 
@@ -142,6 +142,8 @@ public class proj_exp1a_revise : MonoBehaviour {
         create_random_position();
         StartCoroutine(pres_target());
         StartCoroutine(pres_cue());
+        StartCoroutine(remove_cue());
+        StartCoroutine(pres_match());
     }
 
     IEnumerator pres_target()
@@ -168,15 +170,14 @@ public class proj_exp1a_revise : MonoBehaviour {
 
     IEnumerator pres_cue()
     {
-        float this_delay = 0f;
         switch (_tag[index + group_number * block_size][0]) {
 
             case 0:
-                this_delay = 0.1f;
+                this_delay = 0f;
                 trigger_code = "~~";
                 break;
             case 1:
-                this_delay = 3.0f;
+                this_delay = 2.0f;
                 trigger_code = " ";
                 break;
             case 2:
@@ -190,16 +191,23 @@ public class proj_exp1a_revise : MonoBehaviour {
         cue_delay[index] = this_delay;
 
         yield return new WaitForSeconds(s1+this_delay);
+        mask.transform.position = new Vector3(pos_list[0][0], pos_list[0][1], loc_z);
+        //port.Open();
+        //port.Write(trigger_code);
 
-        create_cue();
-        port.Open();
-        port.Write(trigger_code);
-     
+
+    }
+    IEnumerator remove_cue(){
+        yield return new WaitForSeconds(s1 + this_delay + 1);
+        mask.transform.position = miss_pos;
+    }
+
+    IEnumerator pres_match(){
+        yield return new WaitForSeconds(s1 + 3f);
+        create_match();
         index++;
         receiver = true;
         time_begin = _timer;
-
-       
     }
 
     void ini_present_seq()
@@ -282,44 +290,8 @@ public class proj_exp1a_revise : MonoBehaviour {
         tgt_rotation = new Vector3(0, y * 180, z);
         reference.transform.Rotate(tgt_rotation, Space.World);
         target = Instantiate(stimuli, new Vector3(pos_list[0][0], pos_list[0][1], loc_z), reference.transform.localRotation) as GameObject;
-        fix_cross.transform.position = new Vector3(0, 0, loc_z);
-
-
-
-
+      
     }
-/*
-    void create_distraction() {
-
-         List<int> dist = new List<int> { 1, 2, 3, 4, 5};
-         dist.Remove((_tag[index + group_number * block_size][1] + 1));
-         dist = _sort(dist);
-
-         for (int i = 0; i < set_size - 1; i++) {
-
-             int j = (int)Random.Range(0f, 5f);
-             float k = Random.Range(0.0f, 360f);
-             int l = (int)Random.Range(0f, 5f);
-             reference.transform.eulerAngles = new Vector3(0, 0, 0);
-             reference.transform.Rotate(new Vector3(j * 90f , k, l * 90f), Space.World);
-             string _s = "";
-             switch ((int)Random.Range(0,100f)%2)
-             {
-                 case 0:
-                     _s = "s" + dist[i].ToString() + "a";
-                     break;
-                 case 1:
-                     _s = "s" + dist[i].ToString() + "b";
-                     break;
-             }
-             stimuli = (GameObject)Resources.Load(_s);
-
-             Vector3 pos = new Vector3(pos_list[i + 1][0], pos_list[i + 1][1], loc_z);
-             distraction[i] = Instantiate(stimuli, pos, reference.transform.localRotation) as GameObject;
-
-         }
-     }
-    */
 
     void create_distraction()
     {
@@ -364,8 +336,10 @@ public class proj_exp1a_revise : MonoBehaviour {
         }
     }
 
-    void create_cue() {
 
+    void create_match() {
+        fix_cross.transform.position = miss_pos;
+        mask.transform.position = miss_pos;
         switch (_tag[index + group_number * block_size][1])
         {
             case 0:
@@ -391,24 +365,20 @@ public class proj_exp1a_revise : MonoBehaviour {
                 break;
         }
 
-        Vector3 cue_rotation = new Vector3(0, 0, 0);
+        Vector3 mt_rotation = new Vector3(0, 0, 0);
         switch (_tag[index + group_number * block_size][3])
         {
             case 0:
-                cue_rotation = new Vector3(0, tgt_rotation.y, ini_ang + tgt_rotation.z + _tag[index + group_number * block_size][2] * intv_ang);
+                mt_rotation = new Vector3(0, tgt_rotation.y, ini_ang + tgt_rotation.z + _tag[index + group_number * block_size][2] * intv_ang);
                 break;
             case 1:
-                cue_rotation = new Vector3(0, tgt_rotation.y + 180, ini_ang - tgt_rotation.z + _tag[index + group_number * block_size][2] * intv_ang);
+                mt_rotation = new Vector3(0, tgt_rotation.y + 180, ini_ang - tgt_rotation.z + _tag[index + group_number * block_size][2] * intv_ang);
                 break;
         }
-       
+
         reference.transform.eulerAngles = new Vector3(0, 0, 0);
-        reference.transform.Rotate(cue_rotation, Space.World);
-
-        mask.transform.position = new Vector3(pos_list[0][0], pos_list[0][1], loc_z);
-        fix_cross.transform.position = miss_pos;
-
-        cue = Instantiate(stimuli, new Vector3(0, 0, loc_z), reference.transform.localRotation) as GameObject;
+        reference.transform.Rotate(mt_rotation, Space.World);
+        match = Instantiate(stimuli, new Vector3(0, 0, loc_z), reference.transform.localRotation) as GameObject;
     }
 
     void finish()
@@ -416,7 +386,7 @@ public class proj_exp1a_revise : MonoBehaviour {
 
         end = (GameObject)Resources.Load("finish");
 
-        cue = Instantiate(end, new Vector3(-2.0f, 0.0f, 15.0f), Quaternion.Euler(new Vector3(0.0f, 0.0f, 0.0f))) as GameObject;
+        match = Instantiate(end, new Vector3(-2.0f, 0.0f, 15.0f), Quaternion.Euler(new Vector3(0.0f, 0.0f, 0.0f))) as GameObject;
 
 
         string _rt = "reaction time: " + floatListToString(remove_first(rt)) + "\r\n";
